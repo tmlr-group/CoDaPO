@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AlphaApollo Demo</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      },
+      startup: {
+        typeset: false
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f4f4f5;
+      --paper: #ffffff;
+      --ink: #1a1a1a;
+      --muted: #666666;
+      --accent: #1d4ed8; 
+      --border: #e5e7eb;
+      --danger: #991b1b;
+      
+      --think-bg: #fdfcff;
+      --think-bd: #8b5cf6;
+      --tool-call-bg: #f8fbff;
+      --tool-call-bd: #3b82f6;
+      --tool-res-bg: #f4fdf8;
+      --tool-res-bd: #10b981;
+      --answer-bg: #fffbf4;
+      --answer-bd: #f59e0b;
+      
+      --font-main: 'Crimson Pro', Georgia, serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      background-color: var(--bg-page);
+      color: var(--ink);
+      font-family: var(--font-main);
+      font-size: 18px;
+      line-height: 1.6;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; 
+    }
+
+    .wrap {
+      max-width: 900px; 
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .header-area {
+      flex-shrink: 0;
+      padding: 24px 20px 10px;
+    }
+
+    .chat-area {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 10px 20px 20px;
+      scroll-behavior: smooth;
+    }
+
+    .input-area {
+      flex-shrink: 0;
+      padding: 0 20px 24px;
+      background: var(--bg-page);
+    }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      padding: 20px 28px;
+    }
+
+    h1 { 
+      margin: 0 0 6px; 
+      font-size: 26px; 
+      font-weight: 600;
+      letter-spacing: -0.02em; 
+      color: #111;
+    }
+
+    .sub { 
+      color: var(--muted); 
+      margin: 0; 
+      font-size: 16px; 
+      font-style: normal;
+    }
+
+    .row { 
+      display: grid; 
+      gap: 16px; 
+      grid-template-columns: 1fr auto; 
+      align-items: stretch; 
+    }
+
+    .actions { display: grid; gap: 12px; }
+
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-family: var(--font-main);
+      font-size: 18px;
+      background: #fafafa;
+      color: var(--ink);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+      background: #fff;
+    }
+
+    button {
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px 20px;
+      min-width: 120px;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover:not([disabled]) {
+      background: #1e40af;
+      border-color: #1e40af;
+      box-shadow: 0 4px 6px rgba(29, 78, 216, 0.2);
+    }
+
+    .btn-secondary { background: #fff; color: var(--ink); border: 1px solid var(--border); }
+    .btn-secondary:hover:not([disabled]) { background: #f9fafb; border-color: #d1d5db; color: #000; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+    button[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+    .status { font-size: 14px; font-family: var(--font-mono); color: var(--muted); margin-top: 12px; }
+    .status.err { color: var(--danger); }
+
+    .chatlog { display: flex; flex-direction: column; gap: 24px; padding-top: 10px; }
+    .turn { display: flex; flex-direction: column; gap: 12px; }
+
+    .turn-user-wrap {
+      align-self: flex-end;
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      border-bottom-right-radius: 4px; 
+      padding: 14px 20px;
+      max-width: 85%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .user-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: var(--font-main);
+      font-size: 18px;
+      margin: 0;
+    }
+
+    .turn-assistant-wrap {
+      align-self: flex-start;
+      max-width: 100%;
+      width: 100%;
+      display: grid; 
+      gap: 12px;
+    }
+
+    .turn-title {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink);
+      font-weight: 600;
+      padding-left: 4px;
+    }
+
+    .summary { 
+      font-size: 14px; 
+      font-family: var(--font-mono);
+      color: var(--muted); 
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+
+    .steps { display: grid; gap: 16px; }
+
+    .step {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .step h3 {
+      margin: 0;
+      padding: 10px 16px;
+      background: #f9fafb;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .grid { display: grid; gap: 12px; padding: 16px; }
+
+    .block {
+      border-left: 3px solid var(--border);
+      padding: 12px 16px;
+      background: #fff;
+    }
+
+    .block.prompt { background: var(--paper); border-left-color: var(--border); }
+    .block.think { background: var(--think-bg); border-left-color: var(--think-bd); }
+    .block.tool_call { background: var(--tool-call-bg); border-left-color: var(--tool-call-bd); }
+    .block.tool_response { background: var(--tool-res-bg); border-left-color: var(--tool-res-bd); }
+    .block.answer { background: var(--answer-bg); border-left-color: var(--answer-bd); }
+    .block.streaming { background: #fafafa; border-left: 3px dashed var(--muted); }
+
+    .label { 
+      font-size: 11px; 
+      font-family: var(--font-mono);
+      color: var(--muted); 
+      margin-bottom: 8px; 
+      font-weight: 600; 
+      text-transform: uppercase; 
+      letter-spacing: 0.05em;
+    }
+
+    .content-body {
+      margin: 0;
+      white-space: pre-wrap; 
+      word-break: break-word;
+      font-family: var(--font-main);
+      font-size: 17px;
+      line-height: 1.6;
+      color: var(--ink);
+    }
+
+    .block.prompt .content-body,
+    .block.tool_response .content-body {
+      font-family: var(--font-mono);
+      font-size: 14px;
+    }
+
+    /* Python 代码块样式 */
+    .code-block {
+      background: #1e1e1e;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 10px 0;
+      border: 1px solid #333;
+    }
+    .code-header {
+      background: #2d2d2d;
+      color: #a3a3a3;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      border-bottom: 1px solid #404040;
+    }
+    .code-body {
+      margin: 0;
+      padding: 14px;
+      color: #d4d4d4;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      overflow-x: auto;
+      white-space: pre; 
+    }
+
+    /* Answer 区域样式 */
+    .final-answer-block {
+      background: #fdf6e3;
+      border: 1px solid #f5e6c4;
+      padding: 16px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-family: var(--font-main);
+      font-size: 18px;
+      color: #855a00;
+      display: flex;
+      justify-content: center; 
+    }
+
+    .think-block {
+      color: #555;
+      margin: 8px 0;
+    }
+
+    mjx-container { margin: 0 !important; }
+    mjx-container[display="true"] { margin: 12px 0 !important; }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      margin-left: 2px;
+      animation: blink 1s steps(1, end) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+
+  <div class="header-area">
+    <div class="wrap">
+      <div class="card" style="padding: 16px 24px;">
+        <h1>AlphaApollo Demo</h1>
+        <p class="sub">Developed by AlphaApollo Team.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-area" id="chat-scroll-container">
+    <div class="wrap">
+      <div id="summary" class="summary" style="text-align: center; margin-bottom: 20px;">No messages yet.</div>
+      <div id="chatlog" class="chatlog"></div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="wrap">
+      <div class="card">
+        <div class="row">
+          <textarea id="message" placeholder="Ask a question and continue with follow-up turns... (LaTeX supported)"></textarea>
+          <div class="actions">
+            <button id="runBtn">Send</button>
+            <button id="newChatBtn" class="btn-secondary">New Chat</button>
+          </div>
+        </div>
+        <p id="status" class="status">Ready for chat.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const runBtn = document.getElementById('runBtn');
+    const newChatBtn = document.getElementById('newChatBtn');
+    const inputEl = document.getElementById('message');
+    const statusEl = document.getElementById('status');
+    const chatlogEl = document.getElementById('chatlog');
+    const summaryEl = document.getElementById('summary');
+    const chatScrollContainer = document.getElementById('chat-scroll-container');
+    
+    let conversationId = '';
+    let currentTurn = null;
+    let streamFinished = false;
+
+    // 清理环境生成的冗长格式要求提示词
+    function cleanEnvironmentPrompt(str) {
+      if (!str) return '';
+      const markers = [
+        "Now it's your turn to respond to the current step.",
+        "You should first conduct the reasoning process."
+      ];
+      
+      let cleaned = str;
+      for (const marker of markers) {
+        const idx = cleaned.indexOf(marker);
+        if (idx !== -1) {
+          cleaned = cleaned.substring(0, idx); 
+        }
+      }
+      return cleaned.trim();
+    }
+
+    function scrollToBottom() {
+      if (chatScrollContainer) {
+        chatScrollContainer.scrollTop = chatScrollContainer.scrollHeight;
+      }
+    }
+
+    function renderMath(element) {
+      if (window.MathJax) {
+        MathJax.typesetPromise([element]).catch((err) => console.log('MathJax error:', err));
+      }
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // 强大的标签与结构解析器
+    function formatTags(str) {
+      let html = str;
+      
+      // 1. 解析 [Action X: '...', Observation X: '...'] 的数组结构，渲染为漂亮的分步卡片
+      html = html.replace(/\[Action\s+(\d+):\s*['"]([\s\S]*?)['"]\s*,\s*Observation\s+(\d+):\s*['"]([\s\S]*?)['"]\]/gi, 
+        function(match, aNum, aContent, oNum, oContent) {
+          return `<div class="step" style="margin: 12px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #fff;">
+            <h3 style="margin: 0; padding: 10px 16px; background: #f8fbff; color: #1d4ed8; border-bottom: 1px solid var(--border); font-size: 14px; font-family: var(--font-mono);">Action ${aNum}</h3>
+            <div class="content-body" style="padding: 16px;">${aContent}</div>
+            <h3 style="margin: 0; padding: 10px 16px; background: #f4fdf8; color: #047857; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 14px; font-family: var(--font-mono);">Observation ${oNum}</h3>
+            <div class="content-body" style="padding: 16px; background: #fafafa; font-family: var(--font-mono); font-size: 14px;">${oContent}</div>
+          </div>`;
+        }
+      );
+
+      // 2. 解析 <python_code> 标签
+      html = html.replace(/&lt;python_code&gt;\s*([\s\S]*?)\s*&lt;\/python_code&gt;/gi, 
+          '<div class="code-block"><div class="code-header">Python</div><pre class="code-body"><code>$1</code></pre></div>');
+
+      // 3. 解析 <tool_response> 标签 (用户输入或 Observation 中可能包含)
+      html = html.replace(/&lt;tool_response&gt;\s*([\s\S]*?)\s*&lt;\/tool_response&gt;/gi, 
+          '<div class="block tool_response" style="margin: 10px 0;"><div class="label" style="color:var(--tool-res-bd);">Tool Response</div><pre style="margin:0; font-family:var(--font-mono); font-size:13px; white-space:pre-wrap; color:var(--ink);">$1</pre></div>');
+
+      // 4. 解析 <answer> 标签
+      html = html.replace(/&lt;answer&gt;\s*([\s\S]*?)\s*&lt;\/answer&gt;/gi, 
+          '<div class="final-answer-block">$1</div>');
+          
+      // 5. 解析 <think> 标签
+      html = html.replace(/&lt;think&gt;\s*([\s\S]*?)\s*&lt;\/think&gt;/gi, 
+          '<div class="think-block">$1</div>');
+
+      return html;
+    }
+
+    function makeBlock(label, text, kind) {
+      const div = document.createElement('div');
+      div.className = `block ${kind || ''}`.trim();
+      
+      const l = document.createElement('div');
+      l.className = 'label';
+      l.textContent = label;
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'content-body';
+      
+      if (kind === 'streaming') {
+         contentDiv.textContent = text || '';
+      } else {
+         contentDiv.innerHTML = formatTags(escapeHTML(text || ''));
+      }
+      
+      div.appendChild(l);
+      div.appendChild(contentDiv);
+      return {div, contentDiv};
+    }
+
+    function ensureStep(stepId) {
+      if (!currentTurn) return null;
+      if (currentTurn.stepCards.has(stepId)) return currentTurn.stepCards.get(stepId);
+      const card = document.createElement('div');
+      card.className = 'step';
+      const h = document.createElement('h3');
+      h.textContent = `Step ${stepId} | running`;
+      card.appendChild(h);
+      const g = document.createElement('div');
+      g.className = 'grid';
+      card.appendChild(g);
+      currentTurn.stepsEl.appendChild(card);
+      const ref = {card, header: h, grid: g};
+      currentTurn.stepCards.set(stepId, ref);
+      return ref;
+    }
+
+    function setStepHeader(stepId, done, reward, isValid) {
+      const ref = ensureStep(stepId);
+      if (!ref) return;
+      ref.header.textContent = `Step ${stepId} | done=${done} | reward=${reward} | valid=${isValid}`;
+    }
+
+    function addStepBlock(stepId, label, text, kind) {
+      const ref = ensureStep(stepId);
+      if (!ref) return null;
+      const block = makeBlock(label, text, kind);
+      ref.grid.appendChild(block.div);
+      
+      if (kind !== 'streaming') {
+        renderMath(block.div);
+      }
+      
+      scrollToBottom();
+      return block;
+    }
+
+    function createTurn(userMessage) {
+      const turn = document.createElement('div');
+      turn.className = 'turn';
+
+      const userWrap = document.createElement('div');
+      userWrap.className = 'turn-user-wrap';
+      const userText = document.createElement('div');
+      userText.className = 'user-text content-body'; 
+      userText.innerHTML = formatTags(escapeHTML(userMessage));
+      userWrap.appendChild(userText);
+      turn.appendChild(userWrap);
+      renderMath(userWrap);
+
+      const assistantWrap = document.createElement('div');
+      assistantWrap.className = 'turn-assistant-wrap';
+      const title = document.createElement('div');
+      title.className = 'turn-title';
+      title.textContent = 'AlphaApollo Assistant';
+      const localSummary = document.createElement('div');
+      localSummary.className = 'summary';
+      localSummary.textContent = 'Running...';
+      const steps = document.createElement('div');
+      steps.className = 'steps';
+      
+      assistantWrap.appendChild(title);
+      assistantWrap.appendChild(localSummary);
+      assistantWrap.appendChild(steps);
+      turn.appendChild(assistantWrap);
+
+      chatlogEl.appendChild(turn);
+      currentTurn = {
+        root: turn,
+        summaryEl: localSummary,
+        stepsEl: steps,
+        stepCards: new Map(),
+        liveBlocks: new Map(),
+      };
+      
+      summaryEl.style.display = 'none'; 
+      scrollToBottom();
+      return currentTurn;
+    }
+
+    function handleEvent(evt) {
+      if (evt.type === 'start') {
+        conversationId = evt.conversation_id || conversationId;
+        statusEl.className = 'status';
+        statusEl.textContent = 'Running (streaming)...';
+        return;
+      }
+      
+      if (evt.type === 'step_start') {
+        setStepHeader(evt.step_id, false, 0, null);
+        const cleanPromptText = cleanEnvironmentPrompt(evt.prompt_text);
+        if (cleanPromptText) {
+            addStepBlock(evt.step_id, 'Observation', cleanPromptText, 'prompt');
+        }
+        return;
+      }
+      
+      if (evt.type === 'llm_start') {
+        const block = addStepBlock(evt.step_id, 'LLM Generating', '', 'streaming');
+        if (!block || !currentTurn) return;
+        
+        block.contentDiv.innerHTML = ''; 
+        const textSpan = document.createElement('span');
+        const cursor = document.createElement('span');
+        cursor.textContent = '▋';
+        cursor.className = 'cursor';
+        
+        block.contentDiv.appendChild(textSpan);
+        block.contentDiv.appendChild(cursor);
+        currentTurn.liveBlocks.set(evt.step_id, {textSpan, cursor, div: block.div});
+        return;
+      }
+      
+      if (evt.type === 'llm_token') {
+        if (!currentTurn) return;
+        const live = currentTurn.liveBlocks.get(evt.step_id);
+        if (!live) return;
+        live.textSpan.textContent += (evt.token || '');
+        scrollToBottom();
+        return;
+      }
+      
+      if (evt.type === 'llm_end') {
+        if (!currentTurn) return;
+        const live = currentTurn.liveBlocks.get(evt.step_id);
+        if (live) {
+          live.div.remove();
+          currentTurn.liveBlocks.delete(evt.step_id);
+        }
+        for (const block of (evt.blocks || [])) {
+          if (block.kind === 'think') {
+            addStepBlock(evt.step_id, 'LLM Think', block.content || '', 'think');
+          } else if (block.kind === 'tool_call') {
+            const suffix = block.tool ? ` (${block.tool})` : '';
+            addStepBlock(evt.step_id, `LLM Tool Call${suffix}`, block.content || '', 'tool_call');
+          } else {
+            addStepBlock(evt.step_id, 'LLM Answer', block.content || '', 'answer');
+          }
+        }
+        return;
+      }
+      
+      if (evt.type === 'tool_response') {
+        addStepBlock(evt.step_id, 'Tool Response', evt.content || '', 'tool_response');
+        return;
+      }
+      
+      if (evt.type === 'step_end') {
+        setStepHeader(evt.step_id, evt.done, evt.reward, evt.is_action_valid);
+        return;
+      }
+      
+      if (evt.type === 'done') {
+        if (currentTurn) {
+          currentTurn.summaryEl.textContent = `Episode finished: total_steps=${evt.total_steps}, final_reward=${evt.final_reward}`;
+        }
+        statusEl.className = 'status';
+        statusEl.textContent = 'Done.';
+        streamFinished = true;
+        scrollToBottom();
+        return;
+      }
+      
+      if (evt.type === 'error') {
+        statusEl.className = 'status err';
+        statusEl.textContent = `Error: ${evt.error || 'unknown error'}`;
+        streamFinished = true;
+      }
+    }
+
+    function parseSSEChunk(chunk) {
+      const lines = chunk.split('\n');
+      const dataLines = [];
+      for (const line of lines) {
+        if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+      }
+      if (!dataLines.length) return;
+      handleEvent(JSON.parse(dataLines.join('\n')));
+    }
+
+    async function runStreaming(message) {
+      streamFinished = false;
+      const resp = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message, conversation_id: conversationId}),
+      });
+      if (!resp.ok) {
+        let message = `HTTP ${resp.status}`;
+        try {
+          const err = await resp.json();
+          message = err.error || message;
+        } catch (_) {}
+        throw new Error(message);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        if (streamFinished) {
+          try { await reader.cancel(); } catch (_) {}
+          break;
+        }
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        let idx = buffer.indexOf('\n\n');
+        while (idx >= 0) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          if (chunk.trim()) parseSSEChunk(chunk);
+          if (streamFinished) {
+            try { await reader.cancel(); } catch (_) {}
+            break;
+          }
+          idx = buffer.indexOf('\n\n');
+        }
+      }
+    }
+
+    runBtn.addEventListener('click', async () => {
+      const message = inputEl.value.trim();
+      if (!message) return;
+
+      runBtn.disabled = true;
+      newChatBtn.disabled = true;
+      statusEl.className = 'status';
+      statusEl.textContent = 'Connecting stream...';
+      createTurn(message);
+      inputEl.value = '';
+      try {
+        await runStreaming(message);
+      } catch (err) {
+        statusEl.className = 'status err';
+        statusEl.textContent = `Error: ${err.message}`;
+      } finally {
+        runBtn.disabled = false;
+        newChatBtn.disabled = false;
+        inputEl.focus(); 
+      }
+    });
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        runBtn.click();
+      }
+    });
+
+    newChatBtn.addEventListener('click', () => {
+      conversationId = '';
+      currentTurn = null;
+      chatlogEl.innerHTML = '';
+      summaryEl.style.display = 'block';
+      summaryEl.textContent = 'New chat started.';
+      statusEl.className = 'status';
+      statusEl.textContent = 'Ready for chat.';
+    });
+  </script>
+</body>
+</html>

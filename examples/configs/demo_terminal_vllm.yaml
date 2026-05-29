@@ -1,0 +1,24 @@
+backend: vllm
+
+llm:
+  model_name: Qwen/Qwen2.5-3B-Instruct
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  temperature: 0.4
+  max_tokens: 4096
+  system_prompt: ""
+
+env:
+  seed: 1
+  max_steps: 6
+  history_length: 4
+  memory_type: simple
+  enable_python_code: true
+  enable_local_rag: false
+  python_code_timeout: 30
+  log_requests: false
+
+demo:
+  ground_truth: "\\boxed{0}"
+  data_source: terminal_demo
+  show_full_prompts: false

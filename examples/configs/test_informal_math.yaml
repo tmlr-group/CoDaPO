@@ -1,0 +1,43 @@
+preprocess:
+  - module: alphaapollo.data_preprocess.prepare_rl_validation_data
+    args:
+      data_source: HuggingFaceH4/MATH-500
+      splits: test
+      local_dir: ./data
+
+runner:
+  launcher: python
+  module: alphaapollo.core.generation.verl.trainer.main_generation
+  overrides:
+    - trainer.nnodes=1
+    - trainer.n_gpus_per_node=1
+    - data.path=${preprocess.0.args.local_dir}/${preprocess.0.args.data_source}/test.parquet
+    - data.prompt_key=prompt
+    - data.n_samples=2
+    - data.batch_size=32
+    - data.return_raw_chat=True
+    - data.truncation=right
+    - data.output_path=${preprocess.0.args.local_dir}/${preprocess.0.args.data_source}/informal_math_training.parquet
+    - data.save2json=true
+    - data.json_output_path=${preprocess.0.args.local_dir}/${preprocess.0.args.data_source}/informal_math_training.json
+    - model.path=Qwen/Qwen2.5-3B-Instruct
+    - rollout.temperature=0.6
+    - rollout.top_k=20
+    - rollout.top_p=0.95
+    - rollout.prompt_length=2048
+    - rollout.response_length=8192
+    - rollout.tensor_model_parallel_size=1
+    - rollout.gpu_memory_utilization=0.75
+    - rollout.max_num_batched_tokens=16384
+    - rollout.name=vllm
+    - env.env_name=informal_math_training
+    - env.seed=0
+    - env.max_steps=8
+    - env.history_length=8
+    - env.resources_per_worker.num_cpus=0.1
+    - env.informal_math.memory_type=simple
+    - env.informal_math.log_requests=false
+    - env.informal_math.python_code_timeout=30
+    - env.informal_math.enable_python_code=true
+    - env.informal_math.enable_local_rag=false
+
