@@ -9,7 +9,7 @@ RL with verifiable rewards can substantially improve LLM reasoning, yet standard
 ## ✨ Key features
 
 <p align="center">
-  <img src="asserts/codapo.png" width="90%" alt="CoDaPO overview: GRPO vs. CoDaPO pipeline">
+  <img src="assets/codapo.png" width="90%" alt="CoDaPO overview: GRPO vs. CoDaPO pipeline">
 </p>
 
 CoDaPO is a **data-centric** and **model-adaptive** framework for RL post-training: it plugs into standard RL objectives by reweighting policy updates and biasing sampling toward the questions most worth learning from. The framework has three components, each described below with its code path; see the paper for derivations and ablations.
